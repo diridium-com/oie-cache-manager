@@ -19,7 +19,7 @@ A plugin for [Open Integration Engine](https://github.com/nextgenhealthcare/conn
 
 ## Requirements
 
-- Open Integration Engine 4.5.2+
+- Open Integration Engine 4.6.0
 - Java 17+
 
 ## Installation
