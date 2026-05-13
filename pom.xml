@@ -14,11 +14,11 @@
     <packaging>pom</packaging>
 
     <properties>
-        <revision>1.0.2</revision>
+        <revision>1.1.0</revision>
 
         <plugin.supported.mc.versions>${mc.version}</plugin.supported.mc.versions>
 
-        <mc.version>4.5.2</mc.version>
+        <mc.version>4.6.0</mc.version>
         <guava.version>33.4.0-jre</guava.version>
         <javax-servlet.version>4.0.1</javax-servlet.version>
         <javax-rs-api.version>2.0.1</javax-rs-api.version>
