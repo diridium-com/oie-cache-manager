@@ -1,0 +1,13 @@
+{
+    "name": "oie-cache-manager-webadmin",
+    "version": "1.2.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "node build.mjs",
+        "test": "node --test 'web/*.test.mjs'"
+    },
+    "devDependencies": {
+        "esbuild": "^0.21.0"
+    }
+}

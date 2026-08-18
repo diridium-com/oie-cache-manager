@@ -1,0 +1,29 @@
+{
+    "schemaVersion": 1,
+    "id": "oie-cache-manager",
+    "name": "OIE Cache Manager",
+    "description": "Database-backed lookup caches for channels: define JDBC-sourced caches with automatic refresh and eviction, look values up from any script via $g('name').lookup(key), monitor live hit-rate statistics, inspect cached entries, and refresh on demand. Works in both the Swing and web administrators.",
+    "type": "plugin",
+    "ui": ["web", "swing"],
+    "version": "1.2.0",
+    "minEngineVersion": "4.6.0",
+    "maxEngineVersion": null,
+    "filename": "oie-cache-manager-{version}.zip",
+    "restartRequired": true,
+    "homepage": "https://github.com/diridium-com/oie-cache-manager",
+    "documentation": "https://github.com/diridium-com/oie-cache-manager#readme",
+    "storeDocs": "docs/store.md",
+    "license": "MPL-2.0",
+    "authors": [
+        "Diridium Technologies Inc."
+    ],
+    "keywords": [
+        "cache",
+        "lookup",
+        "jdbc",
+        "database",
+        "performance",
+        "reference-data"
+    ],
+    "deprecated": false
+}
