@@ -80,7 +80,7 @@ export function registerCachePanel(platform, api) {
     function errText(e, idScoped) {
         const status = e && e.status;
         if (status === 403) {
-            return 'permission denied (check your Server Settings permissions)';
+            return 'permission denied (your role needs the "View Caches" / "Manage Caches" permission)';
         }
         if (status === 404 && idScoped) {
             return 'the cache definition no longer exists on the server';

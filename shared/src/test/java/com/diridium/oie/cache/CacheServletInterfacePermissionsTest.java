@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.lang.reflect.Method;
 
-import com.mirth.connect.client.core.Permissions;
+
 import com.mirth.connect.client.core.api.MirthOperation;
 
 import org.junit.jupiter.api.Test;
@@ -19,22 +19,22 @@ import org.junit.jupiter.api.Test;
 class CacheServletInterfacePermissionsTest {
 
     @Test
-    void readOperations_requireSettingsView() throws Exception {
-        assertPermission("getCacheDefinitions", Permissions.SERVER_SETTINGS_VIEW, false);
-        assertPermission("getCacheDefinition", Permissions.SERVER_SETTINGS_VIEW, false);
-        assertPermission("getAllCacheStatistics", Permissions.SERVER_SETTINGS_VIEW, false);
-        assertPermission("getCacheStatistics", Permissions.SERVER_SETTINGS_VIEW, false);
-        assertPermission("getCacheSnapshot", Permissions.SERVER_SETTINGS_VIEW, false);
+    void readOperations_requireViewCaches() throws Exception {
+        assertPermission("getCacheDefinitions", CachePermissions.VIEW, false);
+        assertPermission("getCacheDefinition", CachePermissions.VIEW, false);
+        assertPermission("getAllCacheStatistics", CachePermissions.VIEW, false);
+        assertPermission("getCacheStatistics", CachePermissions.VIEW, false);
+        assertPermission("getCacheSnapshot", CachePermissions.VIEW, false);
     }
 
     @Test
-    void writeOperations_requireSettingsEdit() throws Exception {
-        assertPermission("createCacheDefinition", Permissions.SERVER_SETTINGS_EDIT, true);
-        assertPermission("updateCacheDefinition", Permissions.SERVER_SETTINGS_EDIT, true);
-        assertPermission("deleteCacheDefinition", Permissions.SERVER_SETTINGS_EDIT, true);
-        assertPermission("refreshCache", Permissions.SERVER_SETTINGS_EDIT, true);
-        assertPermission("testConnection", Permissions.SERVER_SETTINGS_EDIT, true);
-        assertPermission("testConnectionInline", Permissions.SERVER_SETTINGS_EDIT, true);
+    void writeOperations_requireManageCaches() throws Exception {
+        assertPermission("createCacheDefinition", CachePermissions.MANAGE, true);
+        assertPermission("updateCacheDefinition", CachePermissions.MANAGE, true);
+        assertPermission("deleteCacheDefinition", CachePermissions.MANAGE, true);
+        assertPermission("refreshCache", CachePermissions.MANAGE, true);
+        assertPermission("testConnection", CachePermissions.MANAGE, true);
+        assertPermission("testConnectionInline", CachePermissions.MANAGE, true);
     }
 
     private void assertPermission(String methodName, String expectedPermission, boolean expectedAuditable) {

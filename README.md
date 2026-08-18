@@ -39,6 +39,24 @@ var state = $g('zip2').lookup(zip);
 
 The first call for a given key queries the database. Subsequent calls return from memory.
 
+## Permissions
+
+The plugin registers two permissions, **View Caches** (definitions, statistics,
+and the cache inspector) and **Manage Caches** (create, edit, delete, refresh,
+and the connection/query tests), covering all of its REST operations and its
+settings tab.
+
+On a stock OIE install this changes nothing: the default authorization
+controller allows every operation for every authenticated user. On installs
+running a role-based authorization controller, the permissions must be granted
+to a role before its users can see or manage caches.
+
+> **Upgrading from 1.1.0 or earlier on a role-based server:** cache operations
+> previously named the core Server Settings permissions, which extension
+> operations cannot actually match, so access followed the controller's
+> unknown-operation policy. After upgrading, an administrator must grant
+> View Caches / Manage Caches to each role that should have them.
+
 ## Building from Source
 
 ```bash

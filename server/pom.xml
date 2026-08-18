@@ -40,6 +40,15 @@
             <version>2.5.1</version>
             <scope>provided</scope>
         </dependency>
+        <!-- OperationUtil.getOperationNamesForPermission scans the servlet
+             interface annotations via Reflections; the engine bundles it at
+             runtime but does not publish it as a Maven dep. -->
+        <dependency>
+            <groupId>org.reflections</groupId>
+            <artifactId>reflections</artifactId>
+            <version>0.9.10</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>

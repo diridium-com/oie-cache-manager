@@ -5,6 +5,8 @@ package com.diridium.oie.cache;
 
 import java.util.Properties;
 
+import com.mirth.connect.client.core.TaskConstants;
+import com.mirth.connect.client.core.api.util.OperationUtil;
 import com.mirth.connect.model.ExtensionPermission;
 import com.mirth.connect.plugins.ServicePlugin;
 
@@ -56,7 +58,28 @@ public class CacheServerPlugin implements ServicePlugin {
 
     @Override
     public ExtensionPermission[] getExtensionPermissions() {
-        return new ExtensionPermission[0];
+        // Operation names are derived by reflection so an operation added to the
+        // servlet interface later cannot ship unregistered. The settings-tab
+        // composite task name lets RBAC hide the tab from users without view.
+        return new ExtensionPermission[] {
+                new ExtensionPermission(
+                        CacheServletInterface.PLUGIN_NAME,
+                        CachePermissions.VIEW,
+                        "View cache definitions, statistics, and cached entries",
+                        OperationUtil.getOperationNamesForPermission(
+                                CachePermissions.VIEW, CacheServletInterface.class),
+                        new String[] {
+                                TaskConstants.SETTINGS_KEY_PREFIX + CacheServletInterface.PLUGIN_NAME
+                                        + "/" + TaskConstants.SETTINGS_REFRESH
+                        }),
+                new ExtensionPermission(
+                        CacheServletInterface.PLUGIN_NAME,
+                        CachePermissions.MANAGE,
+                        "Create, edit, delete, refresh, and test cache definitions",
+                        OperationUtil.getOperationNamesForPermission(
+                                CachePermissions.MANAGE, CacheServletInterface.class),
+                        new String[0])
+        };
     }
 
     private void loadCacheDefinitions() {

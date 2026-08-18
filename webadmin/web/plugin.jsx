@@ -7,8 +7,9 @@
  * Registers the Cache Manager settings tab (the web equivalent of the Swing
  * CacheSettingsPanelPlugin). All UI is client-side; it talks only to the
  * existing engine servlet at /api/extensions/oie-cache-manager. The engine
- * enforces SERVER_SETTINGS_VIEW / SERVER_SETTINGS_EDIT on every operation;
- * the panel additionally hides mutating buttons via the host's task checks.
+ * enforces the plugin's own "View Caches" / "Manage Caches" permissions
+ * (published to RBAC via getExtensionPermissions) on every operation; the
+ * panel additionally hides mutating buttons via the host's task checks.
  */
 
 import { makeApi } from './cache-api.js';
