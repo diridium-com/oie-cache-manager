@@ -189,7 +189,7 @@ function snapshotErrorMessage(e) {
     const status = e && e.status;
     if (status === 403) {
         return 'You do not have permission to view cache snapshots'
-            + ' (viewing server settings is required).';
+            + ' (the "View Caches" permission is required).';
     }
     if (status === 404 || status === 501) {
         return 'The OIE Cache Manager plugin is not installed on this engine.';

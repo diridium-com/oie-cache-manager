@@ -18,7 +18,7 @@ import javax.ws.rs.core.MediaType;
 
 import com.mirth.connect.client.core.ClientException;
 import com.mirth.connect.client.core.Operation.ExecuteType;
-import com.mirth.connect.client.core.Permissions;
+
 import com.mirth.connect.client.core.api.BaseServletInterface;
 import com.mirth.connect.client.core.api.MirthOperation;
 import com.mirth.connect.client.core.api.Param;
@@ -41,14 +41,14 @@ public interface CacheServletInterface extends BaseServletInterface {
     @Path("/definitions")
     @Operation(summary = "List all cache definitions")
     @MirthOperation(name = "getCacheDefinitions", display = "List cache definitions",
-            permission = Permissions.SERVER_SETTINGS_VIEW, type = ExecuteType.ASYNC, auditable = false)
+            permission = CachePermissions.VIEW, type = ExecuteType.ASYNC, auditable = false)
     List<CacheDefinition> getCacheDefinitions() throws ClientException;
 
     @GET
     @Path("/definitions/{id}")
     @Operation(summary = "Get a cache definition by ID")
     @MirthOperation(name = "getCacheDefinition", display = "Get cache definition",
-            permission = Permissions.SERVER_SETTINGS_VIEW, type = ExecuteType.ASYNC, auditable = false)
+            permission = CachePermissions.VIEW, type = ExecuteType.ASYNC, auditable = false)
     CacheDefinition getCacheDefinition(
             @Param("id") @Parameter(description = "Cache definition ID", required = true)
             @PathParam("id") String id) throws ClientException;
@@ -57,7 +57,7 @@ public interface CacheServletInterface extends BaseServletInterface {
     @Path("/definitions")
     @Operation(summary = "Create a new cache definition")
     @MirthOperation(name = "createCacheDefinition", display = "Create cache definition",
-            permission = Permissions.SERVER_SETTINGS_EDIT, type = ExecuteType.SYNC)
+            permission = CachePermissions.MANAGE, type = ExecuteType.SYNC)
     CacheDefinition createCacheDefinition(
             @Param("definition") @Parameter(description = "The cache definition to create", required = true)
             CacheDefinition definition) throws ClientException;
@@ -66,7 +66,7 @@ public interface CacheServletInterface extends BaseServletInterface {
     @Path("/definitions/{id}")
     @Operation(summary = "Update an existing cache definition")
     @MirthOperation(name = "updateCacheDefinition", display = "Update cache definition",
-            permission = Permissions.SERVER_SETTINGS_EDIT, type = ExecuteType.SYNC)
+            permission = CachePermissions.MANAGE, type = ExecuteType.SYNC)
     CacheDefinition updateCacheDefinition(
             @Param("id") @Parameter(description = "Cache definition ID", required = true)
             @PathParam("id") String id,
@@ -77,7 +77,7 @@ public interface CacheServletInterface extends BaseServletInterface {
     @Path("/definitions/{id}")
     @Operation(summary = "Delete a cache definition")
     @MirthOperation(name = "deleteCacheDefinition", display = "Delete cache definition",
-            permission = Permissions.SERVER_SETTINGS_EDIT, type = ExecuteType.SYNC)
+            permission = CachePermissions.MANAGE, type = ExecuteType.SYNC)
     void deleteCacheDefinition(
             @Param("id") @Parameter(description = "Cache definition ID", required = true)
             @PathParam("id") String id) throws ClientException;
@@ -88,7 +88,7 @@ public interface CacheServletInterface extends BaseServletInterface {
     @Path("/definitions/{id}/refresh")
     @Operation(summary = "Refresh a cache (re-fetch entries currently in memory)")
     @MirthOperation(name = "refreshCache", display = "Refresh cache",
-            permission = Permissions.SERVER_SETTINGS_EDIT, type = ExecuteType.ASYNC)
+            permission = CachePermissions.MANAGE, type = ExecuteType.ASYNC)
     void refreshCache(
             @Param("id") @Parameter(description = "Cache definition ID", required = true)
             @PathParam("id") String id) throws ClientException;
@@ -97,7 +97,7 @@ public interface CacheServletInterface extends BaseServletInterface {
     @Path("/definitions/{id}/testConnection")
     @Operation(summary = "Test the JDBC connection for a cache definition")
     @MirthOperation(name = "testConnection", display = "Test connection",
-            permission = Permissions.SERVER_SETTINGS_EDIT, type = ExecuteType.ASYNC)
+            permission = CachePermissions.MANAGE, type = ExecuteType.ASYNC)
     String testConnection(
             @Param("id") @Parameter(description = "Cache definition ID", required = true)
             @PathParam("id") String id) throws ClientException;
@@ -106,7 +106,7 @@ public interface CacheServletInterface extends BaseServletInterface {
     @Path("/testConnectionInline")
     @Operation(summary = "Test a JDBC connection using an unsaved cache definition")
     @MirthOperation(name = "testConnectionInline", display = "Test connection",
-            permission = Permissions.SERVER_SETTINGS_EDIT, type = ExecuteType.SYNC)
+            permission = CachePermissions.MANAGE, type = ExecuteType.SYNC)
     String testConnectionInline(
             @Param("definition") @Parameter(description = "Cache definition with connection details", required = true)
             CacheDefinition definition) throws ClientException;
@@ -115,7 +115,7 @@ public interface CacheServletInterface extends BaseServletInterface {
     @Path("/testQueryInline")
     @Operation(summary = "Test a query using an unsaved cache definition with a sample key")
     @MirthOperation(name = "testQueryInline", display = "Test query",
-            permission = Permissions.SERVER_SETTINGS_EDIT, type = ExecuteType.SYNC)
+            permission = CachePermissions.MANAGE, type = ExecuteType.SYNC)
     String testQueryInline(
             @Param("definition") @Parameter(description = "Cache definition with query details", required = true)
             CacheDefinition definition,
@@ -126,14 +126,14 @@ public interface CacheServletInterface extends BaseServletInterface {
     @Path("/statistics")
     @Operation(summary = "Get runtime statistics for all caches")
     @MirthOperation(name = "getAllCacheStatistics", display = "Get all cache statistics",
-            permission = Permissions.SERVER_SETTINGS_VIEW, type = ExecuteType.ASYNC, auditable = false)
+            permission = CachePermissions.VIEW, type = ExecuteType.ASYNC, auditable = false)
     List<CacheStatistics> getAllCacheStatistics() throws ClientException;
 
     @GET
     @Path("/definitions/{id}/statistics")
     @Operation(summary = "Get runtime statistics for a cache")
     @MirthOperation(name = "getCacheStatistics", display = "Get cache statistics",
-            permission = Permissions.SERVER_SETTINGS_VIEW, type = ExecuteType.ASYNC, auditable = false)
+            permission = CachePermissions.VIEW, type = ExecuteType.ASYNC, auditable = false)
     CacheStatistics getCacheStatistics(
             @Param("id") @Parameter(description = "Cache definition ID", required = true)
             @PathParam("id") String id) throws ClientException;
@@ -142,7 +142,7 @@ public interface CacheServletInterface extends BaseServletInterface {
     @Path("/definitions/{id}/snapshot")
     @Operation(summary = "Get a point-in-time snapshot of cache statistics and entries")
     @MirthOperation(name = "getCacheSnapshot", display = "Get cache snapshot",
-            permission = Permissions.SERVER_SETTINGS_VIEW, type = ExecuteType.ASYNC, auditable = false)
+            permission = CachePermissions.VIEW, type = ExecuteType.ASYNC, auditable = false)
     CacheSnapshot getCacheSnapshot(
             @Param("id") @Parameter(description = "Cache definition ID", required = true)
             @PathParam("id") String id,
