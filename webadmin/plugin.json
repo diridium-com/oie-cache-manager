@@ -1,0 +1,9 @@
+{
+    "id": "oie-cache-manager",
+    "name": "OIE Cache Manager",
+    "version": "1.2.0",
+    "author": "Diridium Technologies Inc.",
+    "description": "Database-backed lookup caches for channels: define JDBC-sourced caches, monitor live statistics, inspect cached entries, and refresh on demand. Web administrator UI for the oie-cache-manager engine plugin.",
+    "oie": { "apiMin": "4.6" },
+    "client": { "entry": "web/plugin.js" }
+}

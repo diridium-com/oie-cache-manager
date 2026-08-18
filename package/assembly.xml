@@ -24,4 +24,17 @@
             </includes>
         </fileSet>
     </fileSets>
+    <!-- Web administrator UI: discovered by the OIE web admin at
+         <extensions>/oie-cache-manager/webadmin/plugin.json. plugin.js is built
+         from ../webadmin/web/plugin.jsx by the frontend-maven-plugin (see pom). -->
+    <files>
+        <file>
+            <source>../webadmin/plugin.json</source>
+            <outputDirectory>${packageName}/webadmin</outputDirectory>
+        </file>
+        <file>
+            <source>../webadmin/web/plugin.js</source>
+            <outputDirectory>${packageName}/webadmin/web</outputDirectory>
+        </file>
+    </files>
 </assembly>

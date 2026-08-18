@@ -14,7 +14,7 @@
     <packaging>pom</packaging>
 
     <properties>
-        <revision>1.1.0</revision>
+        <revision>1.2.0</revision>
 
         <plugin.supported.mc.versions>${mc.version}</plugin.supported.mc.versions>
 
@@ -144,6 +144,19 @@
     </modules>
 
     <build>
+        <!-- Surefire pinned to a JUnit-Platform-capable version: Maven's super-POM
+             binds surefire versions that lack the JUnit 5 provider on older
+             toolchains, which SKIPS the whole suite silently and builds green.
+             CI independently fails the build when zero surefire reports exist. -->
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>3.2.5</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
