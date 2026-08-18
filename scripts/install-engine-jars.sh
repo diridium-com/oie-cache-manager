@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2026 Diridium Technologies Inc.
 #
-# Installs the four OIE engine jars this plugin builds against into the local
+# Installs the five OIE engine jars this plugin builds against into the local
 # Maven repository. The public repsy mirror does not yet carry 4.6.0, so we
 # resolve from a local engine checkout instead.
 #
@@ -28,6 +28,7 @@ declare -a JARS=(
     "mirth-crypto:server/setup/server-lib/mirth-crypto.jar"
     "donkey-server:donkey/setup/donkey-server.jar"
     "mirth-client-core:server/setup/server-lib/mirth-client-core.jar"
+    "mirth-client:server/setup/client-lib/mirth-client.jar"
 )
 
 for entry in "${JARS[@]}"; do

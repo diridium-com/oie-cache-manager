@@ -76,12 +76,14 @@ jobs:
             oie/server-lib/mirth-server.jar \
             oie/server-lib/mirth-crypto.jar \
             oie/server-lib/mirth-client-core.jar \
-            oie/server-lib/donkey/donkey-server.jar
+            oie/server-lib/donkey/donkey-server.jar \
+            oie/client-lib/mirth-client.jar
           for pair in \
             "mirth-server:oie/server-lib/mirth-server.jar" \
             "mirth-crypto:oie/server-lib/mirth-crypto.jar" \
             "mirth-client-core:oie/server-lib/mirth-client-core.jar" \
-            "donkey-server:oie/server-lib/donkey/donkey-server.jar"; do
+            "donkey-server:oie/server-lib/donkey/donkey-server.jar" \
+            "mirth-client:oie/client-lib/mirth-client.jar"; do
             a="${pair%%:*}"; p="${pair#*:}"
             mvn -q install:install-file -Dfile="$p" -DgroupId=com.mirth.connect -DartifactId="$a" -Dversion="$MC_VERSION" -Dpackaging=jar
           done
