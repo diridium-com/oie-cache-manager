@@ -8,6 +8,6 @@
         "test": "node --test 'web/*.test.mjs'"
     },
     "devDependencies": {
-        "esbuild": "^0.21.0"
+        "esbuild": "^0.28.2"
     }
 }
