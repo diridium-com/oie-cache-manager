@@ -3,10 +3,10 @@
 #
 #   git tag v1.2.0 && git push origin v1.2.0
 #
-# The draft is never published by CI. Release flow from here: build and sign
-# locally (YubiKey, -Psigning), replace the draft's zip AND regenerate its
-# .sha256 sidecar from the signed zip, publish by hand, then run the "Catalog PR"
-# workflow (catalog.yml) to submit the published release to the community catalog.
+# The draft is never published by CI. Release flow from here (see RELEASING.md):
+# build and sign locally (YubiKey, -Psigning), replace the draft's zip AND
+# regenerate its .sha256 sidecar from the signed zip, publish by hand, then
+# submit the published release to the community catalog.
 #
 # The tag drives the Maven version via -Drevision, so plugin.xml's pluginVersion
 # (what the engine reports as "installed") matches oie.json, keeping the store's
@@ -120,7 +120,7 @@ jobs:
 
       - name: Create DRAFT GitHub Release with assets
         # Stays a draft: the zip is unsigned. A human signs locally, replaces the
-        # zip and its .sha256 sidecar, and publishes; catalog.yml runs after that.
+        # zip and its .sha256 sidecar, and publishes (see RELEASING.md).
         uses: softprops/action-gh-release@v2
         with:
           draft: true

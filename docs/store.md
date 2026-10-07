@@ -19,6 +19,9 @@ handling in transformer code.
   definition against the live database from the editor dialog.
 - **Both administrators** — the classic Swing Administrator and the OIE web
   administrator, with full feature parity.
+- **Role-based permissions**: publishes View Caches and Manage Caches to
+  role-based authorization controllers. On a server running one, grant them to
+  each role that should see or change caches.
 
 ## Using it
 
