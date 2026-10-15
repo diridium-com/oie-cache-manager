@@ -18,7 +18,7 @@ set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-MC_VERSION="$(mvn -q -N help:evaluate -Dexpression=mc.version -DforceStdout)"
+MC_VERSION="$(mvn -q -N org.apache.maven.plugins:maven-help-plugin:3.5.1:evaluate -Dexpression=mc.version -DforceStdout)"
 if [[ -z "${MC_VERSION}" ]]; then
     echo "error: could not read mc.version from pom.xml" >&2
     exit 1
@@ -73,7 +73,7 @@ tar -xzf "${DIST_DIR}/${TARBALL}" -C "${DIST_DIR}" "${members[@]}"
 for entry in "${JARS[@]}"; do
     artifact="${entry%%:*}"
     echo "installing ${artifact}-${MC_VERSION}"
-    mvn -q install:install-file \
+    mvn -q org.apache.maven.plugins:maven-install-plugin:3.1.4:install-file \
         -Dfile="${DIST_DIR}/${entry#*:}" \
         -DgroupId=com.mirth.connect \
         -DartifactId="${artifact}" \

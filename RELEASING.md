@@ -7,39 +7,68 @@ Every release is signed. CI builds an unsigned draft, the signed build is made w
 
 ## 1. Bump the version
 
-Change all of these in the commit you tag:
+Change both of these in the commit you tag. The release workflow fails, naming each one, if either does not match the tag:
 
 - `<revision>` in the parent `pom.xml`
-- `version` in `oie.json` (the release workflow fails if it does not match the tag)
-- `version` in `webadmin/plugin.json`
-- `version` in `webadmin/package.json`, and the two root entries in `webadmin/package-lock.json`
+- `version` in `oie.json`
 
-CI stamps the tag into the build on its own, but the signed build is made from the committed files, so they have to agree.
+Everything else takes its version from `<revision>` when the zip is built: `plugin.xml`, the jar names and `webadmin/plugin.json`. The release workflow checks the version inside the built zip as well. `oie.json` stays separate because the store tooling reads it straight from the repo at the tag.
+
+When the engine version (`mc.version` in `pom.xml`) changes, set `minEngineVersion` and `maxEngineVersion` in `oie.json` to it as well. The engine loads a plugin only on the exact version it was built for, and the release workflow fails if `oie.json` says otherwise.
+
+CI builds the committed files as they are, the same way the signed build does.
 
 ## 2. Tag
+
+Tag a commit on `master` whose CI run passed.
 
 ```bash
 git tag vX.Y.Z && git push origin vX.Y.Z
 ```
 
-`.github/workflows/release.yml` builds against the OIE distribution matching the POM's `mc.version` and stages a **draft** release holding the unsigned `oie-cache-manager-X.Y.Z.zip` and its `.sha256` sidecar. CI never publishes it.
+`.github/workflows/release.yml` builds and tests against the OIE release matching the POM's `mc.version` and stages a **draft** release holding the unsigned `oie-cache-manager-X.Y.Z.zip` and its `.sha256` sidecar. CI never publishes it. It refuses a tag whose release is already published, so a re-run cannot put the unsigned zip over the signed one.
+
+If the release job fails, or the draft turns out wrong before anyone publishes it, delete the draft and the tag and tag again. Nobody has an unpublished version, so it keeps its number:
+
+```bash
+gh release delete vX.Y.Z --yes          # the draft only; never a published release
+git push origin :refs/tags/vX.Y.Z
+git tag -d vX.Y.Z
+# fix on master, wait for its CI, then tag again
+```
+
+A clone that already fetched the old tag keeps it, so on the signing machine fetch with `git fetch --tags --force` and check that `git rev-parse vX.Y.Z` is the new commit.
 
 ## 3. Build the signed zip
 
-Check out the tag on the machine with the YubiKey. If its local Maven repository does not have the engine jars for this `mc.version` yet, run `./scripts/install-engine-jars.sh` first. The `signing` profile also needs `yubikey-pkcs11.cfg` (start from `yubikey-pkcs11.cfg.example`) and `certchain.pem` in the repo root; both are gitignored. From the repo root:
+Check out the tag on the machine with the YubiKey, and make sure the checkout is exactly the tag, with no local changes, so the signed zip is built from what CI tested:
 
 ```bash
-mvn clean package -Psigning -Dsigning.storepass=<yubikey-pin>
+git fetch --tags --force && git checkout vX.Y.Z
+git status --porcelain                 # must print nothing
+git describe --exact-match --tags      # must print vX.Y.Z
 ```
+
+If its local Maven repository does not have the engine jars for this `mc.version` yet, run `./scripts/install-engine-jars.sh` first. The `signing` profile needs `yubikey-pkcs11.cfg` (start from `yubikey-pkcs11.cfg.example`) and `certchain.pem` in the repo root. Both are gitignored. From the repo root:
+
+```bash
+read -rs PIN
+mvn clean package -Psigning -Dsigning.storepass="$PIN"
+unset PIN
+```
+
+`read -s` takes the PIN without echoing it or leaving it in your shell history. The variable isn't exported, so only Maven gets the PIN, not the processes the build starts (npm, and the install scripts it runs).
 
 Copy `package/target/oie-cache-manager-X.Y.Z.zip` somewhere safe right away. A later `mvn clean` deletes it, and it cannot be rebuilt without the key.
 
 Check every jar before it goes anywhere. Each must print `jar verified.` and exit 0:
 
 ```bash
-unzip -q oie-cache-manager-X.Y.Z.zip -d check
-for j in check/oie-cache-manager/*.jar; do jarsigner -verify -strict "$j" || echo "NOT SIGNED: $j"; done
+mkdir check-X.Y.Z && unzip -q oie-cache-manager-X.Y.Z.zip -d check-X.Y.Z
+for j in check-X.Y.Z/oie-cache-manager/*.jar; do jarsigner -verify -strict "$j" || echo "NOT SIGNED: $j"; done
 ```
+
+The `mkdir` fails if the folder already exists, so an earlier release's jars can't get mixed in.
 
 `jarsigner -verify -verbose -certs` also prints when the signing certificate expires. The DigiCert timestamp keeps already-signed jars valid after that, but new releases need a current certificate.
 

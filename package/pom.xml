@@ -59,16 +59,25 @@
                         <configuration><nodeVersion>v24.21.0</nodeVersion></configuration>
                     </execution>
                     <execution>
-                        <id>npm-install</id>
+                        <id>npm-ci</id>
                         <phase>generate-resources</phase>
                         <goals><goal>npm</goal></goals>
-                        <configuration><arguments>install</arguments></configuration>
+                        <!-- ci installs exactly what package-lock.json says, and fails if the two disagree. -->
+                        <configuration><arguments>ci</arguments></configuration>
                     </execution>
                     <execution>
                         <id>npm-build-webadmin</id>
                         <phase>generate-resources</phase>
                         <goals><goal>npm</goal></goals>
                         <configuration><arguments>run build</arguments></configuration>
+                    </execution>
+                    <!-- The web UI's unit tests (webadmin/web/*.test.mjs). Bound to the test
+                         phase, so -DskipTests skips them along with the Java tests. -->
+                    <execution>
+                        <id>npm-test-webadmin</id>
+                        <phase>test</phase>
+                        <goals><goal>npm</goal></goals>
+                        <configuration><arguments>test</arguments></configuration>
                     </execution>
                 </executions>
             </plugin>

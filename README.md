@@ -72,10 +72,12 @@ The installable plugin ZIP is produced at:
 package/target/oie-cache-manager-<version>.zip
 ```
 
-To build with JAR signing enabled (requires a PKCS#11 token):
+To build with JAR signing enabled (requires a PKCS#11 token; see [RELEASING.md](RELEASING.md), step 3):
 
 ```bash
-mvn clean package -Psigning
+read -rs PIN
+mvn clean package -Psigning -Dsigning.storepass="$PIN"
+unset PIN
 ```
 
 ## Documentation
