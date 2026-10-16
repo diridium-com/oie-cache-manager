@@ -80,6 +80,19 @@ mvn clean package -Psigning -Dsigning.storepass="$PIN"
 unset PIN
 ```
 
+### End-to-end tests
+
+`e2e/run.py` installs a built zip into the released OIE engine through the engine's own installer and checks the plugin on a real database: a fresh install and restarts (the table is created once, and a missing `max_connections` column is added once), an upgrade from each release in `e2e/upgrade-sources.txt` built for that engine, and the features (Test Connection and Test Query, saving, editing and deleting a definition, a channel's `$g('name').lookup(key)` calls, statistics, the inspector, refresh and a restart). Each cache reads a lookup table on the same database server through that database's driver. CI runs it on every push and pull request against Derby, PostgreSQL, MySQL, SQL Server (jTDS and Microsoft drivers) and Oracle.
+
+It needs Java 17 and, for every database but Derby, Docker:
+
+```bash
+python3 e2e/run.py --db postgres --zip package/target/oie-cache-manager-<version>.zip \
+    --tarball target/oie-dist/oie_unix_4_6_0.tar.gz --work /path/that/does/not/exist/yet
+```
+
+`./scripts/install-engine-jars.sh` leaves the OIE tarball in `target/oie-dist/`, where a full `mvn clean` deletes it.
+
 ## Documentation
 
 See the [Wiki](https://github.com/diridium-com/oie-cache-manager/wiki) for full documentation:
