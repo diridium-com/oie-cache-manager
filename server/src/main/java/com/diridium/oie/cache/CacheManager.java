@@ -7,6 +7,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -36,6 +37,12 @@ import org.slf4j.LoggerFactory;
 public final class CacheManager {
 
     private static final Logger log = LoggerFactory.getLogger(CacheManager.class);
+
+    // jTDS 1.3.1, the SQL Server driver the engine ships alongside Microsoft's, doesn't implement
+    // Connection.isValid() (it throws AbstractMethodError), which Test Connection and HikariCP
+    // otherwise use to check a connection. Its connections are checked with this query instead.
+    // Plain SELECT 1 isn't valid on every database (Oracle, Derby), so only jTDS gets it.
+    static final String JTDS_TEST_QUERY = "SELECT 1";
 
     private static volatile CacheManager instance;
 
@@ -409,6 +416,13 @@ public final class CacheManager {
 
         try (Connection conn = DriverManager.getConnection(
                 definition.getUrl(), definition.getUsername(), definition.getPassword())) {
+            if (isJtds(definition)) {
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.setQueryTimeout(10);
+                    stmt.execute(JTDS_TEST_QUERY);
+                }
+                return "Connection successful";
+            }
             if (conn.isValid(10)) {
                 return "Connection successful";
             } else {
@@ -466,7 +480,7 @@ public final class CacheManager {
         }
     }
 
-    private static HikariDataSource createPool(CacheDefinition definition) {
+    static HikariDataSource createPool(CacheDefinition definition) {
         // Pre-register the driver with DriverManager (needed for non-JDBC4 drivers)
         try {
             Class.forName(definition.getDriver());
@@ -487,7 +501,16 @@ public final class CacheManager {
         ds.setMinimumIdle(0);
         ds.setAutoCommit(true);
         ds.setPoolName("oie-cache-" + definition.getName());
+        if (isJtds(definition)) {
+            ds.setConnectionTestQuery(JTDS_TEST_QUERY);
+        }
         return ds;
+    }
+
+    // By driver class or, when the class is left to URL auto-detection, by URL.
+    private static boolean isJtds(CacheDefinition definition) {
+        return "net.sourceforge.jtds.jdbc.Driver".equals(definition.getDriver())
+                || (definition.getUrl() != null && definition.getUrl().startsWith("jdbc:jtds:"));
     }
 
     private static void closePoolQuietly(HikariDataSource pool) {
