@@ -1,5 +1,5 @@
-# Builds the plugin on a semver tag and stages a DRAFT GitHub Release with the
-# unsigned zip + .sha256 sidecar:
+# Builds and tests the plugin on a semver tag and stages a DRAFT GitHub Release
+# with the unsigned zip + .sha256 sidecar:
 #
 #   git tag v1.2.0 && git push origin v1.2.0
 #
@@ -8,11 +8,16 @@
 # regenerate its .sha256 sidecar from the signed zip, publish by hand, then
 # submit the published release to the community catalog.
 #
-# The tag drives the Maven version via -Drevision, so plugin.xml's pluginVersion
-# (what the engine reports as "installed") matches oie.json, keeping the store's
-# update detection accurate. oie.json is verified to match the tag. The engine
-# version comes from the POM's mc.version (see build.yml for why it is not
-# hardcoded here).
+# The tag must match the version in every file that carries it (RELEASING.md,
+# step 1), so CI builds the committed files as they are, the same way the signed
+# build does, and plugin.xml's pluginVersion (what the engine reports as
+# "installed") matches oie.json, keeping the store's update detection accurate.
+# The engine version comes from the POM's mc.version (see build.yml for why it
+# is not hardcoded here).
+#
+# A tag whose release is already published is refused, so re-running this
+# workflow can never replace a published release's files with an unsigned
+# build. An existing draft is updated: publishing it is the last, manual step.
 
 name: Release
 
@@ -28,22 +33,63 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # Keeps the job's write token out of .git/config, where every later step, the npm install
+      # during the build included, could read it. No later step needs git credentials.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
         with:
           distribution: temurin
           java-version: '17'
           cache: maven
 
-      - name: Resolve and verify version
+      - name: Refuse a tag whose release is already published
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if DRAFT="$(gh release view "$GITHUB_REF_NAME" --json isDraft -q .isDraft 2>&1)"; then
+            if [ "$DRAFT" != "true" ]; then
+              echo "::error::Release ${GITHUB_REF_NAME} is already published. Its files are never replaced; release a new version."
+              exit 1
+            fi
+            echo "A draft exists for ${GITHUB_REF_NAME}; it will be updated."
+          elif [ "$DRAFT" = "release not found" ]; then
+            echo "No release exists for ${GITHUB_REF_NAME} yet."
+          else
+            # Anything else (network, permissions) must not be taken for "no release".
+            echo "::error::Could not check for an existing release: $DRAFT"
+            exit 1
+          fi
+
+      - name: Check the tag against every version file
         id: ver
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          MANIFEST_VERSION="$(jq -r .version oie.json)"; MANIFEST_VERSION="${MANIFEST_VERSION#v}"
-          if [ "$VERSION" != "$MANIFEST_VERSION" ]; then
-            echo "::error::Tag ${GITHUB_REF_NAME} implies version $VERSION but oie.json says $MANIFEST_VERSION"
+          HELP=org.apache.maven.plugins:maven-help-plugin:3.5.1
+          check() {
+            if [ "$2" != "$VERSION" ]; then
+              echo "::error::Tag ${GITHUB_REF_NAME} is version ${VERSION}, but $1 says '$2'."
+              FAILED=1
+            fi
+          }
+          FAILED=0
+          check "pom.xml <revision>" "$(mvn -q -N "$HELP:evaluate" -Dexpression=revision -DforceStdout)"
+          check "oie.json version" "$(jq -r .version oie.json)"
+          # The engine loads a plugin only on the exact version in plugin.xml's mirthVersion (the
+          # pom's mc.version), so the store listing must say exactly that version too.
+          MC_VERSION="$(mvn -q -N "$HELP:evaluate" -Dexpression=mc.version -DforceStdout)"
+          for field in minEngineVersion maxEngineVersion; do
+            got="$(jq -r ".$field" oie.json)"
+            if [ "$got" != "$MC_VERSION" ]; then
+              echo "::error::oie.json $field is '${got}', but the plugin is built for OIE ${MC_VERSION} (pom.xml mc.version), the only version the engine will load it on."
+              FAILED=1
+            fi
+          done
+          if [ "$FAILED" -ne 0 ]; then
+            echo "Set the version in every file listed above (RELEASING.md, step 1) and tag again."
             exit 1
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
@@ -51,7 +97,7 @@ jobs:
       - name: Resolve the engine version from the POM
         id: engine
         run: |
-          MC_VERSION="$(mvn -q -N help:evaluate -Dexpression=mc.version -DforceStdout)"
+          MC_VERSION="$(mvn -q -N org.apache.maven.plugins:maven-help-plugin:3.5.1:evaluate -Dexpression=mc.version -DforceStdout)"
           if [ -z "$MC_VERSION" ]; then
             echo "::error::Could not read mc.version from pom.xml"
             exit 1
@@ -62,7 +108,7 @@ jobs:
 
       - name: Cache OIE distribution
         id: oie-cache
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ${{ steps.engine.outputs.tarball }}
           key: oie-dist-${{ steps.engine.outputs.tag }}
@@ -73,6 +119,21 @@ jobs:
           OIE_TAG: ${{ steps.engine.outputs.tag }}
           OIE_TARBALL: ${{ steps.engine.outputs.tarball }}
         run: curl -fSL -o "$OIE_TARBALL" "https://github.com/OpenIntegrationEngine/engine/releases/download/${OIE_TAG}/${OIE_TARBALL}"
+
+      # Whether it came from the cache or the download: checked against the release's own
+      # sha256sums before any jar from it is installed, as scripts/install-engine-jars.sh does.
+      - name: Check the OIE distribution against the release's sha256sums
+        env:
+          OIE_TAG: ${{ steps.engine.outputs.tag }}
+          OIE_TARBALL: ${{ steps.engine.outputs.tarball }}
+        run: |
+          curl -fsSL -o sha256sums "https://github.com/OpenIntegrationEngine/engine/releases/download/${OIE_TAG}/sha256sums"
+          expected="$(awk -v f="$OIE_TARBALL" '{ n = $2; sub(/^\*/, "", n) } n == f { print $1 }' sha256sums)"
+          if [ -z "$expected" ]; then
+            echo "::error::${OIE_TARBALL} is not listed in the release's sha256sums"
+            exit 1
+          fi
+          echo "${expected}  ${OIE_TARBALL}" | sha256sum -c -
 
       - name: Install engine jars into the local Maven repo
         env:
@@ -92,27 +153,45 @@ jobs:
             "donkey-server:oie/server-lib/donkey/donkey-server.jar" \
             "mirth-client:oie/client-lib/mirth-client.jar"; do
             a="${pair%%:*}"; p="${pair#*:}"
-            mvn -q install:install-file -Dfile="$p" -DgroupId=com.mirth.connect -DartifactId="$a" -Dversion="$MC_VERSION" -Dpackaging=jar
+            mvn -q org.apache.maven.plugins:maven-install-plugin:3.1.4:install-file -Dfile="$p" -DgroupId=com.mirth.connect -DartifactId="$a" -Dversion="$MC_VERSION" -Dpackaging=jar
           done
 
-      # Keep the (cosmetic) web plugin.json version in step with the release too.
-      - name: Stamp web plugin version
+      # Signing is skipped by default (no keystore in CI).
+      - name: Build and test
+        run: mvn -B -ntp package
+
+      - name: Confirm tests actually ran
+        run: |
+          reports=$(find . -path '*/target/surefire-reports/*.xml' | wc -l)
+          if [ "$reports" -eq 0 ]; then
+            echo "::error::No surefire reports were produced. The test suite did not run."
+            exit 1
+          fi
+          echo "surefire report files: $reports"
+
+      # plugin.xml and webadmin/plugin.json get their version from the pom when the zip is
+      # built. Check what actually went into the zip, so a broken filter can't ship a placeholder.
+      - name: Check the version inside the zip
         run: |
           VERSION="${{ steps.ver.outputs.version }}"
-          sed -i "s|\"version\":[[:space:]]*\"[^\"]*\"|\"version\": \"${VERSION}\"|" webadmin/plugin.json
-
-      - name: Build
-        run: mvn -B -ntp -Drevision="${{ steps.ver.outputs.version }}" -DskipTests package
+          ZIP="package/target/oie-cache-manager-${VERSION}.zip"
+          XML="$(unzip -p "$ZIP" oie-cache-manager/plugin.xml | sed -n 's:.*<pluginVersion>\(.*\)</pluginVersion>.*:\1:p')"
+          JSON="$(unzip -p "$ZIP" oie-cache-manager/webadmin/plugin.json | jq -r .version)"
+          if [ "$XML" != "$VERSION" ] || [ "$JSON" != "$VERSION" ]; then
+            echo "::error::The zip has plugin.xml '${XML}' and webadmin/plugin.json '${JSON}', but the tag is ${VERSION}."
+            exit 1
+          fi
+          echo "plugin.xml and webadmin/plugin.json in the zip both say ${VERSION}"
 
       - name: Stage the release asset and checksum
         id: pkg
         run: |
           VERSION="${{ steps.ver.outputs.version }}"
-          SRC="$(find package/target -maxdepth 1 -name 'oie-cache-manager-*.zip' | head -n1)"
-          if [ -z "$SRC" ]; then
-            echo "::error::No plugin zip found in package/target"; ls -l package/target || true; exit 1
-          fi
           ASSET="oie-cache-manager-${VERSION}.zip"
+          SRC="package/target/${ASSET}"
+          if [ ! -f "$SRC" ]; then
+            echo "::error::${SRC} was not built"; ls -l package/target || true; exit 1
+          fi
           mkdir -p out
           cp "$SRC" "out/${ASSET}"
           ( cd out && sha256sum "${ASSET}" > "${ASSET}.sha256" )
@@ -120,8 +199,9 @@ jobs:
 
       - name: Create DRAFT GitHub Release with assets
         # Stays a draft: the zip is unsigned. A human signs locally, replaces the
-        # zip and its .sha256 sidecar, and publishes (see RELEASING.md).
-        uses: softprops/action-gh-release@v2
+        # zip and its .sha256 sidecar, and publishes (see RELEASING.md). Pinned
+        # to v2.6.2 by commit.
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
         with:
           draft: true
           files: |

@@ -3,7 +3,7 @@
 <!-- SPDX-License-Identifier: MPL-2.0 -->
 <!-- Copyright (c) 2026 Diridium Technologies Inc. -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" child.project.url.inherit.append.path="false">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.diridium</groupId>
@@ -19,20 +19,25 @@
         <plugin.supported.mc.versions>${mc.version}</plugin.supported.mc.versions>
 
         <mc.version>4.6.0</mc.version>
-        <guava.version>33.4.0-jre</guava.version>
-        <javax-servlet.version>4.0.1</javax-servlet.version>
+        <!-- The provided versions match what OIE ships (server-lib and client-lib), since that is
+             what the plugin runs against: compiling against a newer line would let code call
+             methods the engine lacks. Re-check them on every mc.version bump. -->
+        <guava.version>32.0.1-jre</guava.version>
+        <javax-servlet.version>3.1.0</javax-servlet.version>
         <javax-rs-api.version>2.0.1</javax-rs-api.version>
-        <swagger-annotations.version>2.1.9</swagger-annotations.version>
-        <log4j.version>2.17.2</log4j.version>
-        <slf4j.version>1.7.32</slf4j.version>
-        <commons-lang3.version>3.12.0</commons-lang3.version>
+        <swagger-annotations.version>2.0.10</swagger-annotations.version>
+        <log4j.version>2.25.3</log4j.version>
+        <slf4j.version>1.7.30</slf4j.version>
+        <commons-lang3.version>3.20.0</commons-lang3.version>
         <xstream.version>1.4.20</xstream.version>
-        <mybatis.version>3.5.9</mybatis.version>
-        <miglayout.version>5.3</miglayout.version>
+        <mybatis.version>3.1.1</mybatis.version>
+        <miglayout.version>4.2</miglayout.version>
         <junit5.version>5.10.2</junit5.version>
         <mockito.version>5.11.0</mockito.version>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- Fixed entry times in the jars, so the same source builds the same bytes. -->
+        <project.build.outputTimestamp>2026-10-15T00:00:00Z</project.build.outputTimestamp>
 
         <!-- Signing disabled by default. Use -Psigning to enable. -->
         <signing.skip>true</signing.skip>
@@ -55,17 +60,12 @@
         </profile>
     </profiles>
 
+    <url>https://github.com/diridium-com/oie-cache-manager</url>
+
     <organization>
         <name>Diridium Technologies Inc.</name>
         <url>https://diridium.com</url>
     </organization>
-
-    <repositories>
-        <repository>
-            <id>mirth-libs</id>
-            <url>https://repo.repsy.io/mvn/kpalang/mirthconnect</url>
-        </repository>
-    </repositories>
 
     <dependencies>
         <dependency>
@@ -164,14 +164,22 @@
                 <version>3.7.0</version>
                 <configuration>
                     <release>17</release>
+                    <!-- No annotation processing: the plugin uses none, and javac would otherwise run any
+                         processor it finds in a classpath jar, the signing build included. -->
+                    <proc>none</proc>
                 </configuration>
             </plugin>
+            <!-- 3.2.0 or later honours project.build.outputTimestamp. The default entries
+                 (Built-By among them) are left out: they record the build machine's user. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-                <version>3.0.2</version>
+                <version>3.4.2</version>
                 <configuration>
                     <archive>
+                        <manifest>
+                            <addDefaultEntries>false</addDefaultEntries>
+                        </manifest>
                         <manifestEntries>
                             <Application-Name>OIE Cache Manager</Application-Name>
                             <url>${project.url}</url>

@@ -33,7 +33,9 @@ handling in transformer code.
 
 ## Compatibility
 
-Requires Open Integration Engine **4.6.0+** (Java 17+). The web administrator
-UI requires a web admin build 4.6+ with the Web Support plugin on the engine.
+Requires Open Integration Engine **4.6.0** (Java 17+). The engine only loads a
+plugin built for its exact version, so each OIE release gets a matching plugin
+release. The web administrator UI requires a web admin build 4.6+ with the Web
+Support plugin on the engine.
 A restart is required after install. Safe to install with or without the web
 administrator.
