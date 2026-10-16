@@ -26,7 +26,6 @@
         <javax-servlet.version>3.1.0</javax-servlet.version>
         <javax-rs-api.version>2.0.1</javax-rs-api.version>
         <swagger-annotations.version>2.0.10</swagger-annotations.version>
-        <log4j.version>2.25.3</log4j.version>
         <slf4j.version>1.7.30</slf4j.version>
         <commons-lang3.version>3.20.0</commons-lang3.version>
         <xstream.version>1.4.20</xstream.version>
@@ -102,12 +101,6 @@
             <groupId>javax.ws.rs</groupId>
             <artifactId>javax.ws.rs-api</artifactId>
             <version>${javax-rs-api.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-api</artifactId>
-            <version>${log4j.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>

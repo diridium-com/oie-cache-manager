@@ -16,9 +16,6 @@
             <outputDirectory>${packageName}</outputDirectory>
             <includes>
                 <include>oie-cache-manager-*.jar</include>
-                <include>guava-*.jar</include>
-                <include>failureaccess-*.jar</include>
-                <include>miglayout-*.jar</include>
                 <include>plugin.xml</include>
                 <include>sqlmap.xml</include>
             </includes>
