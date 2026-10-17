@@ -142,8 +142,10 @@ def fresh(r, engine, db, name, settings, new_zip):
     check_quiet(r, engine, 0, "on any start")
 
 
-def upgrade(r, engine, db, name, settings, new_zip, old_zip):
-    """A definition saved under the old release survives the upgrade, and the new build looks values up with it."""
+def upgrade(r, engine, db, name, settings, new_zip, old_zip, upgrade_engine=None):
+    """A definition saved under the old release survives the upgrade, and the new build looks values up with it.
+    With upgrade_engine, the old release runs on the older engine it was built for, and the engine is upgraded
+    under it before the new zip goes in: the path every user of the old release takes."""
     api = engine.start()
     r.check("the old release installs", *c.install(api, old_zip))
     engine.stop()
@@ -153,6 +155,15 @@ def upgrade(r, engine, db, name, settings, new_zip, old_zip):
     d = c.definition(db, engine, settings, CACHE)
     d["id"] = c.fields(api.xml("POST", c.EXT + "/definitions", c.definition_xml(d))).get("id", "")
     r.check("a definition saves under the old release", d["id"])
+
+    if upgrade_engine:
+        engine.stop()
+        engine = upgrade_engine(engine)
+        api = engine.start()
+        # Control: the old release is still installed under the upgraded engine, which skips it.
+        skipped = [line for line in engine.plugin_log_lines(("ERROR",)) if "is not compatible" in line]
+        r.check("after the engine upgrade: the engine skipped the old release", len(skipped) == 1,
+                f"{len(skipped)} 'is not compatible' lines")
 
     r.check("the new zip installs over the old release", *c.install(api, new_zip))
     engine.stop()
@@ -166,7 +177,8 @@ def upgrade(r, engine, db, name, settings, new_zip, old_zip):
     cid = save_lookup_channel(r, api)
     deploy_and_look_up(r, api, engine, cid, "after the upgrade")
     engine.stop()
-    # From the upgrade on only: 1.2.0 itself logs migration warnings at startup on Derby, Oracle and SQL Server.
+    # From the new build's first start on only: 1.2.0 itself logs migration warnings at startup on Derby,
+    # Oracle and SQL Server, and an upgraded engine logs one error for skipping it (the control above).
     check_quiet(r, engine, since, "after the upgrade")
 
 

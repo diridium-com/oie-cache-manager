@@ -19,8 +19,10 @@ A plugin for [Open Integration Engine](https://github.com/nextgenhealthcare/conn
 
 ## Requirements
 
-- Open Integration Engine 4.6.0
+- Open Integration Engine 4.7.0
 - Java 17+
+
+Running OIE 4.6.0? Use [oie-cache-manager 1.2.0](https://github.com/diridium-com/oie-cache-manager/releases/tag/v1.2.0).
 
 ## Installation
 
@@ -82,16 +84,16 @@ unset PIN
 
 ### End-to-end tests
 
-`e2e/run.py` installs a built zip into the released OIE engine through the engine's own installer and checks the plugin on a real database: a fresh install and restarts (the table is created once, and a missing `max_connections` column is added once), an upgrade from each release in `e2e/upgrade-sources.txt` built for that engine, and the features (Test Connection and Test Query, saving, editing and deleting a definition, a channel's `$g('name').lookup(key)` calls, statistics, the inspector, refresh and a restart). Each cache reads a lookup table on the same database server through that database's driver. CI runs it on every push and pull request against Derby, PostgreSQL, MySQL, SQL Server (jTDS and Microsoft drivers) and Oracle.
+`e2e/run.py` installs a built zip into the released OIE engine through the engine's own installer and checks the plugin on a real database: a fresh install and restarts (the table is created once, and a missing `max_connections` column is added once), an upgrade from each release in `e2e/upgrade-sources.txt` (a release built for an older engine runs on that engine first, from `e2e/engines.txt`, and the engine is upgraded under it), and the features (Test Connection and Test Query, saving, editing and deleting a definition, a channel's `$g('name').lookup(key)` calls, statistics, the inspector, refresh and a restart). Each cache reads a lookup table on the same database server through that database's driver. CI runs it on every push and pull request against Derby, PostgreSQL, MySQL, SQL Server (jTDS and Microsoft drivers) and Oracle, with the engine on Java 17 and on Java 21. While a release targets an engine that isn't published yet, CI runs it on the POM's `mc.version` engine with `--label-as`, which installs copies of the zips whose `plugin.xml` names that engine instead.
 
-It needs Java 17 and, for every database but Derby, Docker:
+It needs Java 17 or later, Docker for every database but Derby, and the distribution tarball of the engine the zip is built for (the `mirthVersion` in its `plugin.xml`):
 
 ```bash
 python3 e2e/run.py --db postgres --zip package/target/oie-cache-manager-<version>.zip \
     --tarball target/oie-dist/oie_unix_4_6_0.tar.gz --work /path/that/does/not/exist/yet
 ```
 
-`./scripts/install-engine-jars.sh` leaves the OIE tarball in `target/oie-dist/`, where a full `mvn clean` deletes it.
+When that engine is the POM's `mc.version`, `./scripts/install-engine-jars.sh` leaves its tarball in `target/oie-dist/`, where a full `mvn clean` deletes it. For a zip built for an engine that isn't published yet, use the `mc.version` tarball and add `--label-as <mc.version>`, as CI does.
 
 ## Documentation
 
