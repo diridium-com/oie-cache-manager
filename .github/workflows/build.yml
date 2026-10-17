@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: MPL-2.0
 # Copyright (c) 2025-2026 Diridium Technologies Inc.
 #
-# Builds and tests every push to main and every pull request.
+# Builds and tests every push to master and every pull request. The e2e job then
+# installs the built zip into the released engine and runs e2e/run.py on each
+# database the engine supports.
 #
 # The engine jars this plugin compiles against come from the published OIE
 # distribution, the same tarball scripts/install-engine-jars.sh uses for local
@@ -22,6 +24,9 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.engine.outputs.tag }}
+      tarball: ${{ steps.engine.outputs.tarball }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
@@ -115,3 +120,89 @@ jobs:
             exit 1
           fi
           echo "surefire report files: $reports"
+
+      - name: Upload the plugin zip for the e2e job
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: plugin-zip
+          path: package/target/oie-cache-manager-*.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  # Installs the zip into the released OIE engine through its own installer, the way a
+  # user would, and runs the scenarios in e2e/run.py: fresh install (the migrator), an
+  # upgrade from each release in e2e/upgrade-sources.txt built for this engine, and the
+  # features (definitions, a channel's lookups, statistics, the inspector, refresh,
+  # restart, delete). One job per database.
+  e2e:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        db: [derby, postgres, mysql, sqlserver, sqlserver-ms, oracle]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # Restore only: the build job saves this cache, and six jobs saving the same key race.
+      - name: Restore OIE distribution
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ needs.build.outputs.tarball }}
+          key: oie-dist-${{ needs.build.outputs.tag }}
+
+      # The whole engine runs from this tarball, so it is checked against the release's own
+      # sha256sums here as well as in the build job.
+      - name: Download and verify OIE distribution
+        env:
+          OIE_TAG: ${{ needs.build.outputs.tag }}
+          OIE_TARBALL: ${{ needs.build.outputs.tarball }}
+        run: |
+          base="https://github.com/OpenIntegrationEngine/engine/releases/download/${OIE_TAG}"
+          if [ ! -f "$OIE_TARBALL" ]; then
+            curl -fSL -o "$OIE_TARBALL" "${base}/${OIE_TARBALL}"
+          fi
+          curl -fsSL -o sha256sums "${base}/sha256sums"
+          expected="$(awk -v f="$OIE_TARBALL" '{ n = $2; sub(/^\*/, "", n) } n == f { print $1 }' sha256sums)"
+          if [ -z "$expected" ]; then
+            echo "::error::${OIE_TARBALL} is not listed in the release's sha256sums"
+            exit 1
+          fi
+          echo "${expected}  ${OIE_TARBALL}" | sha256sum -c -
+
+      - name: Download the plugin zip
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: plugin-zip
+          path: plugin-zip
+
+      - name: Run the e2e scenarios
+        env:
+          DB: ${{ matrix.db }}
+          OIE_TARBALL: ${{ needs.build.outputs.tarball }}
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          zips=(plugin-zip/oie-cache-manager-*.zip)
+          if [ "${#zips[@]}" -ne 1 ] || [ ! -f "${zips[0]}" ]; then
+            echo "::error::expected exactly one plugin zip, found: ${zips[*]}"
+            exit 1
+          fi
+          python3 e2e/run.py --db "$DB" --zip "${zips[0]}" --tarball "$OIE_TARBALL" --work "$RUNNER_TEMP/e2e"
+
+      - name: Upload engine logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: e2e-logs-${{ matrix.db }}
+          path: |
+            ${{ runner.temp }}/e2e/*/oie/logs/
+            ${{ runner.temp }}/e2e/*/oie/console-*.log
+          if-no-files-found: ignore
+          retention-days: 7

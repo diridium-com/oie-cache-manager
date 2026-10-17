@@ -14,3 +14,6 @@ certchain.pem
 # Web administrator UI build
 webadmin/node_modules/
 webadmin/web/plugin.js
+
+# Python bytecode from running the e2e tests locally
+__pycache__/
