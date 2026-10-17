@@ -51,8 +51,9 @@ def mirth_version(zip_path):
 
 def relabel(zip_path, version, dest):
     """A copy of a plugin zip whose plugin.xml says mirthVersion `version`, and nothing else changed. plugin.xml
-    sits outside the jars, so their signatures still verify."""
-    with zipfile.ZipFile(zip_path) as src, zipfile.ZipFile(dest, "w") as out:
+    sits outside the jars, so their signatures still verify. dest must not exist yet: an overwritten copy would
+    put one zip in place of another."""
+    with zipfile.ZipFile(zip_path) as src, zipfile.ZipFile(dest, "x") as out:
         for info in src.infolist():
             data = src.read(info)
             if re.fullmatch(r"[^/]+/plugin\.xml", info.filename):

@@ -89,16 +89,19 @@ def main():
     os.makedirs(os.path.join(args.work, "relabelled"))
     relabelled = []
 
-    def labelled(zip_path):
-        """The zip itself, or with --label-as a copy relabelled for that engine version."""
+    def labelled(zip_path, role):
+        """The zip itself, or with --label-as a copy relabelled for that engine version. role ("new" or "old")
+        is part of the copy's name: the zip under test and a published release can share a file name, as when
+        master still builds the version last released."""
         built_for = mirth_version(zip_path)
         if not args.label_as or built_for == args.label_as:
             return zip_path
-        relabelled.append(f"{os.path.basename(zip_path)} (built for OIE {built_for})")
-        return relabel(zip_path, args.label_as, os.path.join(args.work, "relabelled", os.path.basename(zip_path)))
+        relabelled.append(f"{role} {os.path.basename(zip_path)} (built for OIE {built_for})")
+        return relabel(zip_path, args.label_as,
+                       os.path.join(args.work, "relabelled", f"{role}-{os.path.basename(zip_path)}"))
 
     pristine = unpack(args.tarball, os.path.join(args.work, "pristine"))
-    new_zip = labelled(os.path.abspath(args.zip))
+    new_zip = labelled(os.path.abspath(args.zip), "new")
     new_version = mirth_version(new_zip)
     older_engines = {version: (digest, url) for version, digest, url in sources("engines.txt")}
     older_pristines = {}
@@ -126,7 +129,7 @@ def main():
                 kwargs = {"new_zip": new_zip}
                 if "url" in extra:
                     kwargs["old_zip"] = labelled(download(extra["url"], extra["digest"],
-                                                          os.path.join(args.work, "downloads", extra["file"])))
+                                                          os.path.join(args.work, "downloads", extra["file"])), "old")
                 dbname = "cm_" + name.replace("-", "_").replace(".", "_")
                 settings = db.create(dbname)
                 first, home = pristine, os.path.join(args.work, name, "oie")
