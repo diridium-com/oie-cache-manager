@@ -1,4 +1,6 @@
 # Releases the upgrade scenario starts from, one per line: version, SHA-256 of the zip, download URL.
 # A release built for an older engine than the zip under test starts on that engine (engines.txt).
-# 1.2.0: the current signed release, for OIE 4.6.0.
+# 1.3.0: the current signed release, for OIE 4.7.0.
+# 1.2.0: the previous signed release, for OIE 4.6.0.
+1.3.0 dc046aa90fbb9c0b73f1441f2534c45beaf13a8cb627c139e94bfbdf2ddbe2fb https://github.com/diridium-com/oie-cache-manager/releases/download/v1.3.0/oie-cache-manager-1.3.0.zip
 1.2.0 16c51837d9822e00485a3f388f197b13277fef5ff12520692d558c06420c03d8 https://github.com/diridium-com/oie-cache-manager/releases/download/v1.2.0/oie-cache-manager-1.2.0.zip
