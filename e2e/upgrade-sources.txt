@@ -1,4 +1,4 @@
-# Published releases the e2e upgrade scenario installs first, then upgrades from.
-# version  engine version it was built for  SHA-256 of the published zip  download URL
-# The engine refuses a plugin built for another version, so a release runs only against its own engine.
-1.2.0 4.6.0 16c51837d9822e00485a3f388f197b13277fef5ff12520692d558c06420c03d8 https://github.com/diridium-com/oie-cache-manager/releases/download/v1.2.0/oie-cache-manager-1.2.0.zip
+# Releases the upgrade scenario starts from, one per line: version, SHA-256 of the zip, download URL.
+# A release built for an older engine than the zip under test starts on that engine (engines.txt).
+# 1.2.0: the current signed release, for OIE 4.6.0.
+1.2.0 16c51837d9822e00485a3f388f197b13277fef5ff12520692d558c06420c03d8 https://github.com/diridium-com/oie-cache-manager/releases/download/v1.2.0/oie-cache-manager-1.2.0.zip

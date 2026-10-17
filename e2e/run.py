@@ -10,15 +10,20 @@ Databases: derby, postgres, mysql, sqlserver (jTDS driver), sqlserver-ms (Micros
 Needs Java 17 (JAVA_HOME or --java-home) for the engine and Docker for every database but Derby.
 --work must not exist yet; the run leaves each engine and its logs there.
 
-Scenarios: fresh (the migrator), one upgrade per entry in upgrade-sources.txt built for the engine
-under test, and features (the plugin used the way an administrator and a channel use it). Each
-downloaded zip is checked against its pinned SHA-256. Exit status 1 if any check failed.
+Scenarios: fresh (the migrator), one upgrade per entry in upgrade-sources.txt, and features (the
+plugin used the way an administrator and a channel use it). An upgrade from a release built for an
+older engine starts on that engine, whose tarball engines.txt names, and upgrades the engine before
+installing the zip under test. Each download is checked against its pinned SHA-256.
+
+--label-as VERSION installs copies of the zips whose plugin.xml says mirthVersion VERSION, for a
+release built for an engine that isn't published yet: CI then runs it on the engine it compiles
+against (the POM's mc.version). The summary says which zips were relabelled.
+Exit status 1 if any check failed.
 """
 
 import argparse
 import hashlib
 import os
-import re
 import sys
 import time
 import traceback
@@ -28,19 +33,20 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import scenarios  # noqa: E402
 from databases import KINDS, Database  # noqa: E402
-from engine import Engine, unpack  # noqa: E402
+from engine import Engine, mirth_version, relabel, unpack  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def sources(name):
-    """The lines of a sources file: (version, engine version, SHA-256, URL) each."""
+    """The lines of a sources file: (version, SHA-256, URL) each."""
     found = []
     with open(os.path.join(HERE, name), encoding="utf-8") as f:
         for line in f:
             line = line.split("#", 1)[0].strip()
             if line:
-                found.append(tuple(line.split()))
+                version, digest, url = line.split()
+                found.append((version, digest, url))
     return found
 
 
@@ -55,13 +61,6 @@ def download(url, digest, dest):
     return dest
 
 
-def engine_version(tarball):
-    m = re.search(r"oie_unix_(\d+)_(\d+)_(\d+)\.tar\.gz$", os.path.basename(tarball))
-    if not m:
-        sys.exit(f"cannot read the engine version from the tarball name {tarball}")
-    return ".".join(m.groups())
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--db", required=True, choices=KINDS)
@@ -70,14 +69,11 @@ def main():
     parser.add_argument("--work", required=True, help="a directory that does not exist yet")
     parser.add_argument("--java-home", default=os.environ.get("JAVA_HOME"))
     parser.add_argument("--scenarios", default="all", help="comma separated: fresh, upgrade-<version>, features")
+    parser.add_argument("--label-as", help="install the zips relabelled for this engine version")
     args = parser.parse_args()
 
-    engine_under_test = engine_version(args.tarball)
-    plan, skipped = [("fresh", scenarios.fresh, {})], []
-    for version, built_for, digest, url in sources("upgrade-sources.txt"):
-        if built_for != engine_under_test:
-            skipped.append(f"upgrade-{version}: built for OIE {built_for}, and this engine is {engine_under_test}")
-            continue
+    plan = [("fresh", scenarios.fresh, {})]
+    for version, digest, url in sources("upgrade-sources.txt"):
         plan.append((f"upgrade-{version}", scenarios.upgrade, {"digest": digest, "url": url,
                                                               "file": f"oie-cache-manager-{version}.zip"}))
     plan.append(("features", scenarios.features, {}))
@@ -90,8 +86,32 @@ def main():
         plan = [p for p in plan if p[0] in wanted]
     os.makedirs(args.work)
     os.makedirs(os.path.join(args.work, "downloads"))
+    os.makedirs(os.path.join(args.work, "relabelled"))
+    relabelled = []
+
+    def labelled(zip_path):
+        """The zip itself, or with --label-as a copy relabelled for that engine version."""
+        built_for = mirth_version(zip_path)
+        if not args.label_as or built_for == args.label_as:
+            return zip_path
+        relabelled.append(f"{os.path.basename(zip_path)} (built for OIE {built_for})")
+        return relabel(zip_path, args.label_as, os.path.join(args.work, "relabelled", os.path.basename(zip_path)))
 
     pristine = unpack(args.tarball, os.path.join(args.work, "pristine"))
+    new_zip = labelled(os.path.abspath(args.zip))
+    new_version = mirth_version(new_zip)
+    older_engines = {version: (digest, url) for version, digest, url in sources("engines.txt")}
+    older_pristines = {}
+
+    def older_pristine(version):
+        if version not in older_pristines:
+            if version not in older_engines:
+                raise RuntimeError(f"no tarball for OIE {version} in e2e/engines.txt")
+            digest, url = older_engines[version]
+            tarball = download(url, digest, os.path.join(args.work, "downloads", os.path.basename(url)))
+            older_pristines[version] = unpack(tarball, os.path.join(args.work, f"pristine-{version}"))
+        return older_pristines[version]
+
     db = Database(args.db)
     reports = []
     started = time.time()
@@ -101,34 +121,46 @@ def main():
             report = scenarios.Report(name)
             reports.append(report)
             print(f"==== {name} on {args.db}", flush=True)
-            engine = None
+            engines = []
             try:
-                kwargs = {"new_zip": os.path.abspath(args.zip)}
+                kwargs = {"new_zip": new_zip}
                 if "url" in extra:
-                    kwargs["old_zip"] = download(extra["url"], extra["digest"],
-                                                 os.path.join(args.work, "downloads", extra["file"]))
+                    kwargs["old_zip"] = labelled(download(extra["url"], extra["digest"],
+                                                          os.path.join(args.work, "downloads", extra["file"])))
                 dbname = "cm_" + name.replace("-", "_").replace(".", "_")
                 settings = db.create(dbname)
-                engine = Engine(pristine, os.path.join(args.work, name, "oie"), args.java_home)
-                engine.configure(settings)
-                fn(report, engine, db, dbname, settings, **kwargs)
+                first, home = pristine, os.path.join(args.work, name, "oie")
+                old_version = mirth_version(kwargs["old_zip"]) if "old_zip" in kwargs else new_version
+                if old_version != new_version:
+                    report.note("engines", f"the old release ran on OIE {old_version}, upgraded to {new_version}")
+                    first = older_pristine(old_version)
+
+                    def upgrade_engine(old, home=home):
+                        engines.append(old.upgrade_to(pristine, home))
+                        return engines[-1]
+                    kwargs["upgrade_engine"] = upgrade_engine
+                    home = os.path.join(args.work, name, f"oie-{old_version}")
+                engines.append(Engine(first, home, args.java_home))
+                engines[0].configure(settings)
+                fn(report, engines[0], db, dbname, settings, **kwargs)
             except Exception as e:  # a scenario that dies is a failure, and the next one still runs
                 traceback.print_exc()
                 report.check("scenario ran to the end", False, f"{type(e).__name__}: {e}")
             finally:
-                if engine:
+                for engine in engines:
                     engine.stop()
     finally:
         db.stop()
 
     failed = sum(len(r.failed) for r in reports)
-    lines = [f"## oie-cache-manager e2e: {args.db}, OIE {engine_under_test}", "",
+    lines = [f"## oie-cache-manager e2e: {args.db}, OIE {new_version}", "",
              "| Scenario | Passed | Failed |", "|---|---|---|"]
     lines += [f"| {r.scenario} | {r.passed} | {len(r.failed)} |" for r in reports]
+    if relabelled:
+        lines.append(f"\nRelabelled to OIE {args.label_as} for this run, plugin.xml only: {', '.join(relabelled)}\n")
     for r in reports:
         lines += [f"- FAIL [{r.scenario}] {name}" for name in r.failed]
         lines += [f"- NOTE [{r.scenario}] {note}" for note in r.notes]
-    lines += [f"- NOTE not run: {s}" for s in skipped]
     lines.append(f"\n{int(time.time() - started)} s")
     print("\n".join(lines), flush=True)
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
