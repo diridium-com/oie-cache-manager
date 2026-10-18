@@ -8,14 +8,14 @@ A plugin for [Open Integration Engine](https://github.com/nextgenhealthcare/conn
 
 ## Features
 
-- **Lazy per-key loading** — data is fetched from the database on first lookup, then served from memory
-- **Automatic eviction** — configurable max size and time-based expiration
-- **HikariCP connection pooling** — bounded concurrent connections per cache to prevent connection storms
-- **Admin UI** — create, edit, duplicate, enable/disable, and delete cache definitions from the OIE Administrator
-- **Cache Inspector** — view hit rates, memory usage, entry counts, and browse cached data
-- **REST API** — full CRUD and statistics endpoints with OpenAPI annotations
-- **Password encryption** — database credentials encrypted at rest using OIE's built-in encryptor
-- **Event logging** — cache operations logged to the OIE event system
+- **Lazy per-key loading**: data is fetched from the database on first lookup, then served from memory
+- **Automatic eviction**: configurable max size and time-based expiration
+- **HikariCP connection pooling**: bounded concurrent connections per cache to prevent connection storms
+- **Admin UI**: create, edit, duplicate, enable/disable, and delete cache definitions from the OIE Administrator
+- **Cache Inspector**: view hit rates, memory usage, entry counts, and browse cached data
+- **REST API**: full CRUD and statistics endpoints with OpenAPI annotations
+- **Password encryption**: database credentials encrypted at rest using OIE's built-in encryptor
+- **Event logging**: cache operations logged to the OIE event system
 
 ## Requirements
 

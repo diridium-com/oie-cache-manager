@@ -103,7 +103,7 @@ jobs:
         run: |
           reports=$(find . -path '*/target/surefire-reports/*.xml' | wc -l)
           if [ "$reports" -eq 0 ]; then
-            echo "::error::No surefire reports were produced — the test suite did not run."
+            echo "::error::No surefire reports were produced. The test suite did not run."
             exit 1
           fi
           echo "surefire report files: $reports"
