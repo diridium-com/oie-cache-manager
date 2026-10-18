@@ -58,12 +58,14 @@ class CacheManagerJtdsTest {
     void onlyJtdsGetsTheTestQuery() {
         try (var byDriver = CacheManager.createPool(definition("net.sourceforge.jtds.jdbc.Driver", JTDS_URL));
                 var byUrl = CacheManager.createPool(definition("", JTDS_URL));
+                var byUpperCaseUrl = CacheManager.createPool(definition("", "JDBC:JTDS:sqlserver://stub:1433/lookups"));
                 var microsoft = CacheManager.createPool(definition("com.microsoft.sqlserver.jdbc.SQLServerDriver",
                         "jdbc:sqlserver://host:1433;databaseName=lookups"));
                 var oracle = CacheManager.createPool(definition("oracle.jdbc.OracleDriver",
                         "jdbc:oracle:thin:@host:1521:lookups"))) {
             assertEquals(CacheManager.JTDS_TEST_QUERY, byDriver.getConnectionTestQuery());
             assertEquals(CacheManager.JTDS_TEST_QUERY, byUrl.getConnectionTestQuery());
+            assertEquals(CacheManager.JTDS_TEST_QUERY, byUpperCaseUrl.getConnectionTestQuery());
             assertNull(microsoft.getConnectionTestQuery());
             assertNull(oracle.getConnectionTestQuery());
         }

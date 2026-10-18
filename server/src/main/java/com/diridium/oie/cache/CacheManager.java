@@ -507,10 +507,13 @@ public final class CacheManager {
         return ds;
     }
 
-    // By driver class or, when the class is left to URL auto-detection, by URL.
+    // By driver class or, when the class is left to URL auto-detection, by URL. jTDS accepts the
+    // URL prefix in any case, so this matches it the same way.
     private static boolean isJtds(CacheDefinition definition) {
+        var prefix = "jdbc:jtds:";
         return "net.sourceforge.jtds.jdbc.Driver".equals(definition.getDriver())
-                || (definition.getUrl() != null && definition.getUrl().startsWith("jdbc:jtds:"));
+                || (definition.getUrl() != null
+                        && definition.getUrl().regionMatches(true, 0, prefix, 0, prefix.length()));
     }
 
     private static void closePoolQuietly(HikariDataSource pool) {
