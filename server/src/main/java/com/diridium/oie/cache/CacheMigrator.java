@@ -16,9 +16,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Creates the cache_definition table on first startup, and adds the max_connections column to a
- * table created before that column existed. Detects the database type and runs the matching
- * dialect-specific SQL.
+ * Creates the cache_definition table on first startup, adds the max_connections column to a
+ * table created before that column existed, and drops the duplicate index on name that earlier
+ * releases created. Detects the database type and runs the matching dialect-specific SQL.
  */
 public class CacheMigrator extends Migrator {
 
@@ -26,12 +26,15 @@ public class CacheMigrator extends Migrator {
 
     private static final String TABLE = "cache_definition";
     private static final String MAX_CONNECTIONS = "max_connections";
+    // The table scripts up to 1.3.0 built this on name, which its UNIQUE constraint already indexes.
+    // MySQL, PostgreSQL and SQL Server kept it; Derby skipped it as a duplicate and Oracle refused it.
+    private static final String DUPLICATE_NAME_INDEX = "idx_cache_definition_name";
 
     /**
-     * The engine runs every plugin migrator on every startup, so each step runs only when what it
-     * adds is missing. Derby has no CREATE TABLE IF NOT EXISTS and Oracle only has it from 23ai, and
-     * letting the create or the ALTER fail logged a warning with a stack trace on every restart.
-     * Failures are logged at ERROR because stock OIE logs nothing below it.
+     * The engine runs every plugin migrator on every startup, so each step runs only when there is
+     * something to add or drop. Derby has no CREATE TABLE IF NOT EXISTS and Oracle only has it from
+     * 23ai, and letting the create or the ALTER fail logged a warning with a stack trace on every
+     * restart. Failures are logged at ERROR because stock OIE logs nothing below it.
      */
     @Override
     public void migrate() {
@@ -39,9 +42,15 @@ public class CacheMigrator extends Migrator {
             if (!tableExists(TABLE)) {
                 executeScript("/" + getDatabaseType() + "-cache-tables.sql");
                 log.info("Cache definition table created");
-            } else if (!columnExists(TABLE, MAX_CONNECTIONS)) {
+                return;
+            }
+            if (!columnExists(TABLE, MAX_CONNECTIONS)) {
                 executeStatement(addMaxConnectionsSql());
                 log.info("Added max_connections column to cache_definition");
+            }
+            if (indexExists(TABLE, DUPLICATE_NAME_INDEX)) {
+                executeStatement(dropDuplicateNameIndexSql());
+                log.info("Dropped the duplicate index on cache_definition.name");
             }
         } catch (Exception e) {
             log.error("Cache definition table migration failed: {}", e.getMessage(), e);
@@ -57,19 +66,51 @@ public class CacheMigrator extends Migrator {
         };
     }
 
+    private String dropDuplicateNameIndexSql() {
+        // MySQL and SQL Server name the table; the others name only the index
+        return switch (getDatabaseType()) {
+            case "mysql", "sqlserver" -> "DROP INDEX idx_cache_definition_name ON cache_definition";
+            default -> "DROP INDEX idx_cache_definition_name";
+        };
+    }
+
     /*
-     * Both lookups look only in the engine's own database and schema: given no catalog, MySQL
+     * The lookups look only in the engine's own database and schema: given no catalog, MySQL
      * Connector/J answers from every database the user can see. Derby and Oracle store unquoted
      * names in upper case, the others in lower case, so both are tried.
      */
 
     private boolean tableExists(String table) throws SQLException {
+        return storedTableName(table) != null;
+    }
+
+    // The table's name as the database stores it, or null if there is no such table.
+    private String storedTableName(String table) throws SQLException {
         Connection connection = getConnection();
         DatabaseMetaData meta = connection.getMetaData();
         for (boolean upper : new boolean[] { true, false }) {
             try (ResultSet rs = meta.getTables(connection.getCatalog(), currentSchema(connection),
                     pattern(meta, table, upper), new String[] { "TABLE" })) {
                 if (rs.next()) {
+                    return rs.getString("TABLE_NAME");
+                }
+            }
+        }
+        return null;
+    }
+
+    // getIndexInfo takes a table name, not a pattern, so it gets the name as stored. Approximate, so
+    // that Oracle doesn't gather statistics first.
+    private boolean indexExists(String table, String index) throws SQLException {
+        String stored = storedTableName(table);
+        if (stored == null) {
+            return false;
+        }
+        Connection connection = getConnection();
+        try (ResultSet rs = connection.getMetaData().getIndexInfo(connection.getCatalog(), currentSchema(connection),
+                stored, false, true)) {
+            while (rs.next()) {
+                if (index.equalsIgnoreCase(rs.getString("INDEX_NAME"))) {
                     return true;
                 }
             }

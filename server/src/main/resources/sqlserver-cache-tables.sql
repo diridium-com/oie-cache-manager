@@ -16,6 +16,3 @@ CREATE TABLE cache_definition (
     created_at                  DATETIME2 DEFAULT GETDATE(),
     updated_at                  DATETIME2 DEFAULT GETDATE()
 )
-
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'idx_cache_definition_name')
-CREATE INDEX idx_cache_definition_name ON cache_definition(name)
