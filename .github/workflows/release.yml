@@ -103,58 +103,19 @@ jobs:
             exit 1
           fi
           echo "mc_version=$MC_VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=v${MC_VERSION}" >> "$GITHUB_OUTPUT"
-          echo "tarball=oie_unix_${MC_VERSION//./_}.tar.gz" >> "$GITHUB_OUTPUT"
 
       - name: Cache OIE distribution
-        id: oie-cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
-          path: ${{ steps.engine.outputs.tarball }}
-          key: oie-dist-${{ steps.engine.outputs.tag }}
+          path: .oie-dist
+          key: oie-dist-${{ steps.engine.outputs.mc_version }}
 
-      - name: Download OIE distribution
-        if: steps.oie-cache.outputs.cache-hit != 'true'
-        env:
-          OIE_TAG: ${{ steps.engine.outputs.tag }}
-          OIE_TARBALL: ${{ steps.engine.outputs.tarball }}
-        run: curl -fSL -o "$OIE_TARBALL" "https://github.com/OpenIntegrationEngine/engine/releases/download/${OIE_TAG}/${OIE_TARBALL}"
-
-      # Whether it came from the cache or the download: checked against the release's own
-      # sha256sums before any jar from it is installed, as scripts/install-engine-jars.sh does.
-      - name: Check the OIE distribution against the release's sha256sums
-        env:
-          OIE_TAG: ${{ steps.engine.outputs.tag }}
-          OIE_TARBALL: ${{ steps.engine.outputs.tarball }}
-        run: |
-          curl -fsSL -o sha256sums "https://github.com/OpenIntegrationEngine/engine/releases/download/${OIE_TAG}/sha256sums"
-          expected="$(awk -v f="$OIE_TARBALL" '{ n = $2; sub(/^\*/, "", n) } n == f { print $1 }' sha256sums)"
-          if [ -z "$expected" ]; then
-            echo "::error::${OIE_TARBALL} is not listed in the release's sha256sums"
-            exit 1
-          fi
-          echo "${expected}  ${OIE_TARBALL}" | sha256sum -c -
-
+      # The same script build.yml and local builds use: it checks the distribution against
+      # the SHA-256 in the POM before installing the five engine jars.
       - name: Install engine jars into the local Maven repo
         env:
-          OIE_TARBALL: ${{ steps.engine.outputs.tarball }}
-          MC_VERSION: ${{ steps.engine.outputs.mc_version }}
-        run: |
-          tar xzf "$OIE_TARBALL" \
-            oie/server-lib/mirth-server.jar \
-            oie/server-lib/mirth-crypto.jar \
-            oie/server-lib/mirth-client-core.jar \
-            oie/server-lib/donkey/donkey-server.jar \
-            oie/client-lib/mirth-client.jar
-          for pair in \
-            "mirth-server:oie/server-lib/mirth-server.jar" \
-            "mirth-crypto:oie/server-lib/mirth-crypto.jar" \
-            "mirth-client-core:oie/server-lib/mirth-client-core.jar" \
-            "donkey-server:oie/server-lib/donkey/donkey-server.jar" \
-            "mirth-client:oie/client-lib/mirth-client.jar"; do
-            a="${pair%%:*}"; p="${pair#*:}"
-            mvn -q org.apache.maven.plugins:maven-install-plugin:3.1.4:install-file -Dfile="$p" -DgroupId=com.mirth.connect -DartifactId="$a" -Dversion="$MC_VERSION" -Dpackaging=jar
-          done
+          OIE_DIST_CACHE: ${{ github.workspace }}/.oie-dist
+        run: ./scripts/install-engine-jars.sh
 
       # Signing is skipped by default (no keystore in CI).
       - name: Build and test

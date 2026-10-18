@@ -66,7 +66,7 @@ to a role before its users can see or manage caches.
 mvn clean package
 ```
 
-The script installs the five OIE engine jars this plugin builds against into your local Maven repository, taken from the published OIE release matching the POM's `mc.version` and checked against that release's `sha256sums`. Run it once per engine version.
+The script installs the five OIE engine jars this plugin builds against into your local Maven repository, taken from the published OIE release matching the POM's `mc.version` and checked against the SHA-256 pinned in the POM (`oie.dist.sha256`). CI runs the same script. Run it once per engine version.
 
 The installable plugin ZIP is produced at:
 
