@@ -18,6 +18,9 @@ from engine import Engine
 
 CREATED = "INFO Cache definition table created"
 ADDED = "INFO Added max_connections column to cache_definition"
+DROPPED = "INFO Dropped the duplicate index on cache_definition.name"
+# Where the table scripts up to 1.3.0 left a duplicate index on name: Derby skipped it and Oracle refused it.
+KEPT_DUPLICATE_INDEX = ("mysql", "postgres", "sqlserver")
 CACHE = "cm_e2e"
 
 
@@ -109,7 +112,8 @@ def deploy_and_look_up(r, api, engine, cid, when):
 # ---------- scenarios
 
 def fresh(r, engine, db, name, settings, new_zip):
-    """A fresh install, restarts, and a table from before max_connections: the migrator adds only what is missing."""
+    """A fresh install, restarts, a table from before max_connections, and one with the duplicate index on name
+    from releases up to 1.3.0: the migrator adds or drops only what it has to."""
     api = engine.start()
     r.check("the zip installs through the engine's installer", *c.install(api, new_zip))
     engine.stop()
@@ -120,6 +124,7 @@ def fresh(r, engine, db, name, settings, new_zip):
     r.check("first start: the migrator creates the table, once", lines == [CREATED], lines)
     engine.stop()
     r.check("the table and its max_connections column exist", c.schema(db, engine, name) == (True, True))
+    r.check("no duplicate index on name", not c.duplicate_name_index(db, engine, name))
 
     for n in (1, 2):
         api, since = start(engine)
@@ -135,6 +140,16 @@ def fresh(r, engine, db, name, settings, new_zip):
     r.check("next start: the migrator adds max_connections, once", lines == [ADDED], lines)
     engine.stop()
     r.check("max_connections exists again", c.schema(db, engine, name) == (True, True))
+
+    if db.server in KEPT_DUPLICATE_INDEX:
+        c.add_duplicate_name_index(db, name)
+        r.check("the duplicate index on name is back, as releases up to 1.3.0 left it",
+                c.duplicate_name_index(db, engine, name))
+        api, since = start(engine)
+        lines = migrator_lines(engine, since)
+        r.check("next start: the migrator drops the duplicate index, once", lines == [DROPPED], lines)
+        engine.stop()
+        r.check("the duplicate index is gone", not c.duplicate_name_index(db, engine, name))
     api, since = start(engine)
     lines = migrator_lines(engine, since)
     r.check("the start after that runs nothing", lines == [], lines)
@@ -167,15 +182,23 @@ def upgrade(r, engine, db, name, settings, new_zip, old_zip, upgrade_engine=None
 
     r.check("the new zip installs over the old release", *c.install(api, new_zip))
     engine.stop()
+    had_index = c.duplicate_name_index(db, engine, name)
+    r.note("the old release left a duplicate index on name", had_index)
     api, since = start(engine)
     r.check("the engine loaded the new build", c.plugin_loaded(api))
     check_server_jar(r, engine, new_zip)
     lines = migrator_lines(engine, since)
-    r.check("the migrator runs nothing: the old release's table has everything", lines == [], lines)
+    r.check("the migrator only drops the old release's duplicate index, if it left one",
+            lines == ([DROPPED] if had_index else []), lines)
     got = c.fields(api.xml("GET", f"{c.EXT}/definitions/{d['id']}"))
     r.check("the definition saved under the old release is still there", got.get("name") == CACHE, got)
     cid = save_lookup_channel(r, api)
     deploy_and_look_up(r, api, engine, cid, "after the upgrade")
+    engine.stop()
+    r.check("no duplicate index on name after the upgrade", not c.duplicate_name_index(db, engine, name))
+    api, restart = start(engine)
+    lines = migrator_lines(engine, restart)
+    r.check("the start after that runs nothing", lines == [], lines)
     engine.stop()
     # From the new build's first start on only: 1.2.0 itself logs migration warnings at startup on Derby,
     # Oracle and SQL Server, and an upgraded engine logs one error for skipping it (the control above).

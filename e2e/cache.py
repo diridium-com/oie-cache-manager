@@ -162,6 +162,32 @@ def schema(db, engine, name):
     return db.scalar(name, t) == 1, db.scalar(name, c) == 1
 
 
+def duplicate_name_index(db, engine, name):
+    """Whether the duplicate index on cache_definition.name exists, which the table scripts up to 1.3.0 built.
+    For Derby the engine must be stopped."""
+    if db.kind == "derby":
+        return derby_count(engine, "SELECT COUNT(*) FROM SYS.SYSCONGLOMERATES "
+                                   "WHERE CONGLOMERATENAME = 'IDX_CACHE_DEFINITION_NAME'") > 0
+    if db.server == "oracle":
+        sql = "SELECT count(*) FROM user_indexes WHERE index_name = 'IDX_CACHE_DEFINITION_NAME'"
+    elif db.server == "postgres":
+        sql = ("SELECT count(*) FROM pg_indexes WHERE tablename = 'cache_definition' "
+               "AND indexname = 'idx_cache_definition_name'")
+    elif db.server == "mysql":
+        sql = (f"SELECT count(*) FROM information_schema.statistics WHERE table_schema = '{name}' "
+               "AND table_name = 'cache_definition' AND index_name = 'idx_cache_definition_name'")
+    else:
+        sql = ("SELECT count(*) FROM sys.indexes WHERE object_id = OBJECT_ID('cache_definition') "
+               "AND name = 'idx_cache_definition_name'")
+    return db.scalar(name, sql) > 0
+
+
+def add_duplicate_name_index(db, name):
+    """Builds the duplicate index as the scripts up to 1.3.0 did. MySQL, PostgreSQL and SQL Server only:
+    Derby skips it as a duplicate and Oracle refuses it."""
+    db.execute(name, "CREATE INDEX idx_cache_definition_name ON cache_definition(name)")
+
+
 def drop_max_connections(db, engine, name):
     """Makes the table look like one created before max_connections existed. Engine stopped."""
     if db.kind == "derby":

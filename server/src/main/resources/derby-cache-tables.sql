@@ -15,5 +15,3 @@ CREATE TABLE cache_definition (
     created_at                  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at                  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
-
-CREATE INDEX idx_cache_definition_name ON cache_definition(name)

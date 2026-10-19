@@ -15,5 +15,3 @@ CREATE TABLE IF NOT EXISTS cache_definition (
     created_at                  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at                  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
-CREATE INDEX IF NOT EXISTS idx_cache_definition_name ON cache_definition(name);

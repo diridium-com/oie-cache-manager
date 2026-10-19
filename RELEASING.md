@@ -86,5 +86,3 @@ Review the draft, then publish it by hand. Never upload over a published release
 ## 5. Submit to the OIE Community Store
 
 The store lists packages from the [community catalog](https://github.com/gibson9583/oie-community-catalog). Open a PR there, from a fork, adding `manifests/plugins/oie-cache-manager/X.Y.Z.json` and refreshing `meta.json` from `oie.json`. The catalog README describes both files. The `sha256` must be computed from the **published, signed** zip, never from the CI build. The catalog's CI downloads the zip and checks that digest before the PR can merge, and the index is rebuilt on merge.
-
-On the Diridium dev VM, the `publish-to-oie-store` Claude Code skill does this end to end. It refuses a release with unsigned jars or a stale sidecar.

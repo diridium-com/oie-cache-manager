@@ -10,7 +10,6 @@ import signal
 import socket
 import subprocess
 import tarfile
-import time
 import xml.etree.ElementTree as ET
 import zipfile
 
@@ -28,10 +27,6 @@ def free_ports(count):
     finally:
         for s in sockets:
             s.close()
-
-
-def free_port():
-    return free_ports(1)[0]
 
 
 def unpack(tarball, dest):
@@ -65,7 +60,8 @@ def relabel(zip_path, version, dest):
 
 
 def set_properties(path, values):
-    """Sets 'key = value' lines in a .properties file, uncommenting a '#key =' line if that is all there is."""
+    """Sets 'key = value' lines in a .properties file. The first line for a key, commented out or not, becomes
+    the setting; a key with no line is added at the end."""
     with open(path, encoding="utf-8", newline="") as f:
         lines = f.read().split("\n")
     for key, value in values.items():
@@ -88,7 +84,7 @@ class Engine:
         self.process = None
         self.console = None
         self.last_start_lost_port = False
-        self.port = free_port()
+        self.port = None
         self.starts = 0
         # Stock OIE logs only ERROR. The plugin's migrator and repository log at INFO and WARN,
         # and the tests read those lines, so the plugin's package is turned up here.

@@ -4,6 +4,8 @@
 package com.diridium.oie.cache;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.InvocationTargetException;
@@ -46,9 +48,10 @@ class CacheMigratorTest {
     void createsTheTableOnAFreshDatabase() throws SQLException {
         migrate();
 
-        assertEquals(2, executed.size(), "the Derby script's two statements: " + executed);
+        assertEquals(1, executed.size(), "the Derby script's one statement: " + executed);
         assertTrue(executed.get(0).startsWith("CREATE TABLE cache_definition"), executed.get(0));
         assertTrue(maxConnectionsExists());
+        assertFalse(duplicateNameIndexExists());
     }
 
     @Test
@@ -79,6 +82,33 @@ class CacheMigratorTest {
         assertEquals(List.of(), executed);
     }
 
+    @Test
+    void dropsTheDuplicateNameIndexOnce() throws SQLException {
+        migrate();
+        // The scripts up to 1.3.0 built it on (name), which Derby skips as a duplicate of the UNIQUE
+        // constraint's index (warning 01504). On (name, id) Derby keeps it, so there is one to drop.
+        // The e2e upgrade covers the real one on MySQL, PostgreSQL and SQL Server.
+        try (Statement s = database.createStatement()) {
+            s.executeUpdate("CREATE INDEX idx_cache_definition_name ON cache_definition(name, id)");
+        }
+        assertTrue(duplicateNameIndexExists());
+        executed.clear();
+
+        migrate();
+
+        assertEquals(List.of("DROP INDEX idx_cache_definition_name"), executed);
+        assertFalse(duplicateNameIndexExists());
+        try (Statement s = database.createStatement()) {
+            s.executeUpdate(insertNamed("a"));
+            var e = assertThrows(SQLException.class, () -> s.executeUpdate(insertNamed("a")));
+            assertEquals("23505", e.getSQLState(), "name is still unique: " + e.getMessage());
+        }
+
+        executed.clear();
+        migrate();
+        assertEquals(List.of(), executed);
+    }
+
     private void migrate() {
         var migrator = new CacheMigrator();
         migrator.setConnection(recording(database));
@@ -90,6 +120,21 @@ class CacheMigratorTest {
         try (ResultSet rs = database.getMetaData().getColumns(null, null, "CACHE_DEFINITION", "MAX_CONNECTIONS")) {
             return rs.next();
         }
+    }
+
+    // Read from Derby's catalog rather than DatabaseMetaData, which the migrator itself uses.
+    private boolean duplicateNameIndexExists() throws SQLException {
+        try (Statement s = database.createStatement();
+                ResultSet rs = s.executeQuery("SELECT COUNT(*) FROM SYS.SYSCONGLOMERATES "
+                        + "WHERE CONGLOMERATENAME = 'IDX_CACHE_DEFINITION_NAME'")) {
+            rs.next();
+            return rs.getInt(1) > 0;
+        }
+    }
+
+    private static String insertNamed(String name) {
+        return "INSERT INTO cache_definition (id, name, driver, url, query) VALUES ('" + UUID.randomUUID()
+                + "', '" + name + "', 'd', 'u', 'q')";
     }
 
     /** The real connection, except that its statements record their SQL. */
