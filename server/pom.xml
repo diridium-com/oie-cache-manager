@@ -51,7 +51,7 @@
         </dependency>
         <!-- CacheMigratorTest runs the migrator against an in-memory Derby database. The engine's
              Migrator runs scripts with commons-dbutils and commons-io. All three at the versions
-             OIE 4.6.0 ships in server-lib. -->
+             OIE 4.7.0 ships in server-lib. -->
         <dependency>
             <groupId>org.apache.derby</groupId>
             <artifactId>derby</artifactId>
