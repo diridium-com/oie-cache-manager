@@ -93,7 +93,7 @@ python3 e2e/run.py --db postgres --zip package/target/oie-cache-manager-<version
     --tarball target/oie-dist/oie_unix_<x_y_z>.tar.gz --work /path/that/does/not/exist/yet
 ```
 
-The tarball is named for its engine version, `oie_unix_4_6_0.tar.gz` for 4.6.0. When that engine is the POM's `mc.version`, `./scripts/install-engine-jars.sh` leaves its tarball in `target/oie-dist/`, where a full `mvn clean` deletes it. For a zip built for an engine that isn't published yet, use the `mc.version` tarball and add `--label-as <mc.version>`, as CI does.
+The tarball is named for its engine version, `oie_unix_4_7_0.tar.gz` for 4.7.0. When that engine is the POM's `mc.version`, `./scripts/install-engine-jars.sh` leaves its tarball in `target/oie-dist/`, where a full `mvn clean` deletes it. For a zip built for an engine that isn't published yet, use the `mc.version` tarball and add `--label-as <mc.version>`, as CI does.
 
 ## Documentation
 
